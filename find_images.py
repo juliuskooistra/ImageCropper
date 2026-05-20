@@ -76,10 +76,10 @@ def main(urls: List[str]) -> None:
 
         filename = url.split("/")[-1]
 
-        if filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".png"):
+        if filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".png") or filename.endswith(".webp"):
             pass
         else:
-            print(f"[{url}] URL does not end with .jpg/.jpeg/.png, skipping.")
+            print(f"[{url}] URL does not end with .jpg/.jpeg/.png/.webp, skipping.")
             continue
 
         out_path = os.path.join(ORIGINAL_DIR, filename)

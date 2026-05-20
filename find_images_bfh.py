@@ -27,6 +27,7 @@ VARIANTS = [
     "profile-lg",
     "teaser-xl",
     "teaser-lg",
+    "og-image-sharing",
 ]
 
 ORIGINAL_DIR = "original"   # where we save the raw downloads

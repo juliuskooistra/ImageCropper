@@ -16,6 +16,7 @@ from typing import Iterable, List, Tuple
 
 # Defaults (can be overridden by caller)
 DIMENSIONS: List[int] = [256, 512, 1024]
+SHAPES: List[str] = ["circle", "square"]  # Only "circle" supported for now
 
 # Preload the cascade
 _face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
@@ -64,18 +65,20 @@ def _circle_mask(size: int) -> Image.Image:
     return mask
 
 
-def crop_and_save_one(input_path: str, output_root: str, dimensions: Iterable[int] = DIMENSIONS) -> list[str]:
+def crop_and_save_one(input_path: str, output_root: str, shapes:Iterable[str] = SHAPES, dimensions: Iterable[int] = DIMENSIONS) -> list[str]:
     """
     Process a single image path and write circular PNGs under:
       {output_root}/{dim}/{basename}.png
     Returns list of output paths created.
     """
     os.makedirs(output_root, exist_ok=True)
-    for d in dimensions:
-        os.makedirs(os.path.join(output_root, str(d)), exist_ok=True)
+
+    for s in shapes:
+        for d in dimensions:
+            os.makedirs(os.path.join(output_root, str(s), str(d)), exist_ok=True)
 
     base = os.path.splitext(os.path.basename(input_path))[0]
-    expected = [os.path.join(output_root, str(dim), f"{base}.png") for dim in dimensions]
+    expected = [os.path.join(output_root, str(s), str(dim), f"{base}.png") for s in shapes for dim in dimensions]
 
     # Skip if all outputs already exist
     if all(os.path.exists(p) for p in expected):
@@ -120,29 +123,36 @@ def crop_and_save_one(input_path: str, output_root: str, dimensions: Iterable[in
 
     for dim in dimensions:
         resized = pil_square.resize((dim, dim), Image.LANCZOS).convert("RGBA")
-        alpha = _circle_mask(dim)
-        resized.putalpha(alpha)
+        if "square" in shapes:
+            out_path = os.path.join(output_root, "square", str(dim), f"{base}.png")
+            resized.save(out_path)
+            out_paths.append(out_path)
+            print(f"[OK] Cropped to square and saved: {out_path}")
+        
+        if "circle" in shapes:
+            alpha = _circle_mask(dim)
+            resized.putalpha(alpha)
 
-        out_path = os.path.join(output_root, str(dim), f"{base}.png")
-        resized.save(out_path)
-        out_paths.append(out_path)
-        print(f"[OK] Cropped and saved: {out_path}")
+            out_path = os.path.join(output_root, "circle", str(dim), f"{base}.png")
+            resized.save(out_path)
+            out_paths.append(out_path)
+            print(f"[OK] Cropped to circle and saved: {out_path}")
 
     return out_paths
 
 
-def crop_specific_files(files: Iterable[str], output_root: str = "cropped", dimensions: Iterable[int] = DIMENSIONS) -> None:
+def crop_specific_files(files: Iterable[str], output_root: str = "cropped", shapes:Iterable[str] = SHAPES, dimensions: Iterable[int] = DIMENSIONS) -> None:
     for f in files:
-        crop_and_save_one(f, output_root=output_root, dimensions=dimensions)
+        crop_and_save_one(f, output_root=output_root, shapes=shapes, dimensions=dimensions)
 
 
-def crop_folder(input_folder: str = "original", output_root: str = "cropped", dimensions: Iterable[int] = DIMENSIONS) -> None:
+def crop_folder(input_folder: str = "original", output_root: str = "cropped", shapes:Iterable[str] = SHAPES, dimensions: Iterable[int] = DIMENSIONS) -> None:
     files = [
         os.path.join(input_folder, fn)
         for fn in os.listdir(input_folder)
-        if fn.lower().endswith((".png", ".jpg", ".jpeg"))
+        if fn.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
     ]
-    crop_specific_files(files, output_root, dimensions)
+    crop_specific_files(files, output_root, shapes=shapes, dimensions=dimensions)
 
 
 if __name__ == "__main__":
