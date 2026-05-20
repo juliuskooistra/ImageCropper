@@ -3,11 +3,9 @@
 Crop portraits into circular PNGs at multiple sizes.
 - Detects largest face, crops a square around it with margin, then applies circular alpha.
 - Exposes functions so other scripts (like the downloader) can call it.
-
-Dependencies: pillow, opencv-python, numpy
-pip install pillow opencv-python numpy
 """
 
+import argparse
 import os
 import cv2
 import numpy as np
@@ -128,7 +126,7 @@ def crop_and_save_one(input_path: str, output_root: str, shapes:Iterable[str] = 
             resized.save(out_path)
             out_paths.append(out_path)
             print(f"[OK] Cropped to square and saved: {out_path}")
-        
+
         if "circle" in shapes:
             alpha = _circle_mask(dim)
             resized.putalpha(alpha)
@@ -155,6 +153,23 @@ def crop_folder(input_folder: str = "original", output_root: str = "cropped", sh
     crop_specific_files(files, output_root, shapes=shapes, dimensions=dimensions)
 
 
+def cli(argv: list[str] | None = None) -> None:
+    """Console-script entry point: crop every image in a folder."""
+    parser = argparse.ArgumentParser(
+        prog="imagecropper-crop",
+        description="Crop every image in a folder into circular/square PNGs.",
+    )
+    parser.add_argument(
+        "-i", "--input", default="original", metavar="DIR",
+        help="folder of source images (default: ./original)",
+    )
+    parser.add_argument(
+        "-o", "--output", default="cropped", metavar="DIR",
+        help="folder to write cropped PNGs into (default: ./cropped)",
+    )
+    args = parser.parse_args(argv)
+    crop_folder(input_folder=args.input, output_root=args.output)
+
+
 if __name__ == "__main__":
-    # CLI: process everything in "original"
-    crop_folder()
+    cli()

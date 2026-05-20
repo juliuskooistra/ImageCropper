@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """
-Download any images of a person,
-then immediately run the cropper on the *newly downloaded* images.
+Download any images of a person, then immediately run the cropper
+on the *newly downloaded* images.
 
 Usage:
-  python find_images.py <url1> <url2> ...
+  imagecropper-fetch <url1> <url2> ...
+  python -m imagecropper.find_images <url1> <url2> ...
 """
 
-import sys
+import argparse
 import os
-import time
 import urllib.request
 import urllib.error
 from typing import List
 
-# Import our cropper
-import crop_images  # expects crop_images.py in the same directory
+from . import crop_images
 
 UA = "Mozilla/5.0 (compatible; ImageFetcher/1.0)"
 
 ORIGINAL_DIR = "original"   # where we save the raw downloads
 CROPPED_DIR = "cropped"     # where cropper writes circular PNGs
+
 
 def head(url: str, timeout: float = 10.0) -> int:
     """Return HTTP status for HEAD; fall back to GET if needed."""
@@ -57,32 +57,26 @@ def download(url: str, out_path: str, timeout: float = 30.0) -> None:
             f.write(chunk)
 
 
-def main(urls: List[str]) -> None:
+def main(urls: List[str], original_dir: str = ORIGINAL_DIR, cropped_dir: str = CROPPED_DIR) -> None:
     if not urls:
-       raise ValueError("No URLs provided")
+        raise ValueError("No URLs provided")
 
-    os.makedirs(ORIGINAL_DIR, exist_ok=True)
+    os.makedirs(original_dir, exist_ok=True)
 
     newly_downloaded: list[str] = []
 
     for url in urls:
-        code = head(url)
-        if code == 200:
-            ok = True
-
-        if not ok:
+        if head(url) != 200:
             print(f"[{url}] No public image found.")
             continue
 
         filename = url.split("/")[-1]
 
-        if filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".png") or filename.endswith(".webp"):
-            pass
-        else:
+        if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
             print(f"[{url}] URL does not end with .jpg/.jpeg/.png/.webp, skipping.")
             continue
 
-        out_path = os.path.join(ORIGINAL_DIR, filename)
+        out_path = os.path.join(original_dir, filename)
         try:
             download(url, out_path)
             newly_downloaded.append(out_path)
@@ -93,10 +87,29 @@ def main(urls: List[str]) -> None:
     # 🔧 Now crop only the newly downloaded images
     if newly_downloaded:
         print(f"[CROP] Processing {len(newly_downloaded)} new image(s)…")
-        crop_images.crop_specific_files(newly_downloaded, output_root=CROPPED_DIR)
+        crop_images.crop_specific_files(newly_downloaded, output_root=cropped_dir)
     else:
         print("[CROP] Nothing new to process.")
 
 
+def cli(argv: list[str] | None = None) -> None:
+    """Console-script entry point."""
+    parser = argparse.ArgumentParser(
+        prog="imagecropper-fetch",
+        description="Download images from URLs, then crop the new ones.",
+    )
+    parser.add_argument("urls", nargs="+", metavar="URL", help="image URL(s) to download")
+    parser.add_argument(
+        "-o", "--output", default=CROPPED_DIR, metavar="DIR",
+        help="folder to write cropped PNGs into (default: ./cropped)",
+    )
+    parser.add_argument(
+        "--original", default=ORIGINAL_DIR, metavar="DIR",
+        help="folder to save raw downloads into (default: ./original)",
+    )
+    args = parser.parse_args(argv)
+    main(args.urls, original_dir=args.original, cropped_dir=args.output)
+
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    cli()

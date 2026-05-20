@@ -1,6 +1,15 @@
-/__pycache__
+__pycache__/
+*.pyc
 
-/original
-/cropped
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
+# Runtime working folders
+/original/
+/cropped/
+
+# OS / editor cruft
 .DS_Store
+.Rhistory

@@ -4,19 +4,18 @@ Download BFH person images by trying common AEM/DAM patterns,
 then immediately run the cropper on the *newly downloaded* images.
 
 Usage:
-  python find_images_bfh.py rej6 gil4 ...
-  # If no args given, it defaults to ["rej6", "gil4"].
+  imagecropper-fetch-bfh rej6 gil4 ...
+  python -m imagecropper.find_images_bfh rej6 gil4 ...
+  # If no args given, it defaults to the KURZELS list below.
 """
 
-import sys
+import argparse
 import os
 import time
 from typing import List
 
-# Import our cropper
-import crop_images  # expects crop_images.py in the same directory
-# Import our downloader
-import find_images # expects find_images.py in the same directory
+from . import crop_images
+from . import find_images
 
 BASE = "https://www.bfh.ch"
 THEME = "bfh-theme"
@@ -68,11 +67,11 @@ def find_first_working_url(urls: List[str]) -> str | None:
     return None
 
 
-def main(ids: List[str]) -> None:
+def main(ids: List[str], original_dir: str = ORIGINAL_DIR, cropped_dir: str = CROPPED_DIR) -> None:
     if not ids:
         ids = KURZELS
 
-    os.makedirs(ORIGINAL_DIR, exist_ok=True)
+    os.makedirs(original_dir, exist_ok=True)
 
     newly_downloaded: list[str] = []
 
@@ -84,7 +83,7 @@ def main(ids: List[str]) -> None:
             print(f"[{img_id}] No public image found.")
             continue
 
-        out_path = os.path.join(ORIGINAL_DIR, f"{img_id}.jpg")
+        out_path = os.path.join(original_dir, f"{img_id}.jpg")
         try:
             find_images.download(ok, out_path)
             newly_downloaded.append(out_path)
@@ -95,10 +94,32 @@ def main(ids: List[str]) -> None:
     # 🔧 Now crop only the newly downloaded images
     if newly_downloaded:
         print(f"[CROP] Processing {len(newly_downloaded)} new image(s)…")
-        crop_images.crop_specific_files(newly_downloaded, output_root=CROPPED_DIR)
+        crop_images.crop_specific_files(newly_downloaded, output_root=cropped_dir)
     else:
         print("[CROP] Nothing new to process.")
 
 
+def cli(argv: list[str] | None = None) -> None:
+    """Console-script entry point."""
+    parser = argparse.ArgumentParser(
+        prog="imagecropper-fetch-bfh",
+        description="Download BFH staff images by Kurzel, then crop them.",
+    )
+    parser.add_argument(
+        "kurzels", nargs="*", metavar="KURZEL",
+        help="BFH Kurzel(s) / short IDs; if omitted, a built-in default list is used",
+    )
+    parser.add_argument(
+        "-o", "--output", default=CROPPED_DIR, metavar="DIR",
+        help="folder to write cropped PNGs into (default: ./cropped)",
+    )
+    parser.add_argument(
+        "--original", default=ORIGINAL_DIR, metavar="DIR",
+        help="folder to save raw downloads into (default: ./original)",
+    )
+    args = parser.parse_args(argv)
+    main(args.kurzels, original_dir=args.original, cropped_dir=args.output)
+
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    cli()
